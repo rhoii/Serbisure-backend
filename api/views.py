@@ -1,88 +1,91 @@
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import authenticate, login
-from .models import CustomUser, WorkerProfile
+from rest_framework import generics, status, viewsets
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate
+from .models import CustomUser, WorkerProfile, Service, Booking
+from .serializers import UserSerializer, LoginSerializer, ServiceSerializer, BookingSerializer
 
-def ServiceListView(request):
-    """
-    Placeholder view for listing services.
-    Will be replaced with a full DRF view in Task 3.
-    """
-    return JsonResponse({
-        "status": "success",
-        "message": "Service list endpoint is working.",
-        "data": []
-    })
-
-@csrf_exempt
-def RegisterView(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            email = data.get('email')
-            password = data.get('password')
-            role = data.get('role', 'homeowner')
-            full_name = data.get('full_name', '')
-            
-            # Basic validation
-            if not email or not password:
-                return JsonResponse({"error": "Email and password are required"}, status=400)
-            
-            if CustomUser.objects.filter(email=email).exists():
-                return JsonResponse({"error": "Email already exists"}, status=400)
-                
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
             # Create user
             user = CustomUser.objects.create_user(
-                username=email, # Using email as username
-                email=email,
-                password=password,
-                role=role,
-                full_name=full_name
+                username=request.data.get('email'),
+                email=request.data.get('email'),
+                password=request.data.get('password'),
+                role=request.data.get('role', 'homeowner'),
+                full_name=request.data.get('full_name', '')
             )
             
             # Create worker profile if role is service_worker
-            if role == 'service_worker':
-                WorkerProfile.objects.create(user=user)
+            if user.role == 'service_worker':
+                WorkerProfile.objects.get_or_create(user=user)
                 
-            return JsonResponse({
-                "message": "User registered successfully",
-                "user": {
-                    "email": email,
-                    "role": role,
-                    "full_name": full_name
-                }
-            }, status=201)
-            
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-    
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+            response_serializer = UserSerializer(user)
+            return Response({"status": "success", "data": response_serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"status": "error", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-@csrf_exempt
-def LoginView(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            email = data.get('email')
-            password = data.get('password')
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
             
-            # Note: since USERNAME_FIELD is 'email', we authenticate normally.
             user = authenticate(request, username=email, password=password)
-            
-            if user is not None:
-                login(request, user)
-                return JsonResponse({
-                    "message": "Login successful",
-                    "user": {
-                        "email": user.email,
-                        "role": user.role
-                    }
-                })
-            else:
-                return JsonResponse({"error": "Invalid credentials"}, status=401)
-                
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-            
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+            if user:
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    "status": "success",
+                    "data": {"token": token.key}
+                }, status=status.HTTP_200_OK)
+            return Response({"status": "error", "message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"status": "error", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+class ServiceListView(generics.ListAPIView):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    permission_classes = [AllowAny]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"status": "success", "data": serializer.data})
+
+class BookingViewSet(viewsets.ModelViewSet):
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # Users can only see their own bookings
+        return Booking.objects.filter(homeowner=self.request.user)
+        
+    def perform_create(self, serializer):
+        # Automatically tie the booking to the logged in user
+        serializer.save(homeowner=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_201_CREATED, headers=headers)
+        
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"status": "success", "data": serializer.data})
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response({"status": "success", "data": serializer.data})
