@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# Install core packaging tools first (Required for Python 3.12 + Swagger)
+# Install core packaging tools first (Required for Swagger compatibility)
 echo "Upgrading pip and installing core packaging tools..."
-python3.12 -m pip install --upgrade pip setuptools wheel
+python3.11 -m pip install --upgrade pip setuptools wheel
 
 # Install dependencies from requirements.txt
 echo "Installing dependencies..."
-python3.12 -m pip install -r requirements.txt
+python3.11 -m pip install -r requirements.txt
 
 # Create static files directory
 echo "Collecting static files..."
-python3.12 manage.py collectstatic --no-input
+python3.11 manage.py collectstatic --no-input
 
 # Run migrations
 echo "Running database migrations..."
-python3.12 manage.py migrate --no-input
+python3.11 manage.py migrate --no-input
 
 echo "Build process completed!"
