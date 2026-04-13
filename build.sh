@@ -16,4 +16,8 @@ python3.12 manage.py collectstatic --no-input
 echo "Running database migrations..."
 python3.12 manage.py migrate --no-input
 
+# Seed data
+echo "Seeding default services..."
+python3.12 manage.py seed_services
+
 echo "Build process completed!"

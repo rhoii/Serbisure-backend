@@ -108,12 +108,30 @@ class BookingViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response({"status": "success", "data": serializer.data})
 
-class ProfileView(APIView):
+class ProfileView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
     
-    def get(self, request):
-        serializer = UserSerializer(request.user)
+    def get_object(self):
+        return self.request.user
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
         return Response({"status": "success", "data": serializer.data})
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({"status": "success", "data": serializer.data})
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"status": "success", "message": "Profile deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 class GoogleSyncView(APIView):
     permission_classes = [AllowAny]
@@ -175,3 +193,29 @@ class GoogleSyncView(APIView):
                 "status": "error",
                 "message": f"Server Error: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserListView(generics.ListAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"status": "success", "data": serializer.data})
+
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated] # Module 3: Secure Audit/Admin View
+
+class WorkerProfileViewSet(viewsets.ModelViewSet):
+    queryset = WorkerProfile.objects.all()
+    serializer_class = WorkerProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # Workers can only manage their own profile metadata
+        if getattr(self, 'action', None) in ['update', 'partial_update', 'destroy']:
+            return WorkerProfile.objects.filter(user=self.request.user)
+        return WorkerProfile.objects.all()
