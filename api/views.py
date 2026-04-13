@@ -108,7 +108,17 @@ class GoogleSyncView(APIView):
             user = CustomUser.objects.filter(email=email).first()
             
             if not user:
-                # 2. If not found, register new user (Shadow Profile)
+                # 2. If not found, check if a role was provided for registration
+                role = request.data.get('role')
+                if not role:
+                    # No user and no role = Need to redirect to role selection
+                    return Response({
+                        "status": "error",
+                        "message": "User not found. Registration required.",
+                        "code": "user_not_found"
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                # Proceed with registration (Shadow Profile)
                 password = request.data.get('password')
                 if not password:
                     from django.utils.crypto import get_random_string
@@ -118,7 +128,7 @@ class GoogleSyncView(APIView):
                     'email': email,
                     'password': password,
                     'full_name': request.data.get('full_name', email.split('@')[0]),
-                    'role': request.data.get('role', 'homeowner')
+                    'role': role
                 })
                 if serializer.is_valid():
                     user = serializer.save()
