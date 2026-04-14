@@ -11,6 +11,22 @@ class IsServiceWorker(permissions.BasePermission):
             request.user.role == 'service_worker'
         )
 
+class IsServiceWorkerOrReadOnly(permissions.BasePermission):
+    """
+    Allows anyone to READ, but only Service Workers to WRITE.
+    """
+    def has_permission(self, request, view):
+        # Allow search-only (GET, HEAD, OPTIONS) for everyone
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # Check if user is authenticated and is a service worker for other methods
+        return bool(
+            request.user and 
+            request.user.is_authenticated and 
+            request.user.role == 'service_worker'
+        )
+
 class IsHomeowner(permissions.BasePermission):
     """
     Allows access only to users with the 'homeowner' role.

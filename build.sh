@@ -17,7 +17,8 @@ echo "Running database migrations..."
 python3.12 manage.py migrate --no-input
 
 # Seed data
-echo "Seeding default services..."
+echo "Seeding default services and users..."
 python3.12 manage.py seed_services
+python3.12 manage.py seed_users
 
 echo "Build process completed!"

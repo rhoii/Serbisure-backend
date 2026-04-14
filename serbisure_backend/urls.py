@@ -27,7 +27,7 @@ from drf_yasg import openapi
 schema_view = get_schema_view(
    openapi.Info(
       title="SerbiSure API",
-      default_version='v1',
+      default_version='v1.0',
       description="Interactive API documentation for SerbiSure Integrated System",
       terms_of_service="https://www.google.com/policies/terms/",
       contact=openapi.Contact(email="contact@serbisure.local"),
@@ -39,11 +39,11 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
+    path('api/v1/', include('api.urls')),
     
     # Module 3: Authentication (JWT)
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # Module 3: Documentation (Swagger/OpenAPI)
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

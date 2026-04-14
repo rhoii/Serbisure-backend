@@ -2,7 +2,7 @@ from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
-from .permissions import IsServiceWorker, IsServiceProviderOrReadOnly, IsHomeowner
+from .permissions import IsServiceWorker, IsServiceProviderOrReadOnly, IsHomeowner, IsServiceWorkerOrReadOnly
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from .models import CustomUser, WorkerProfile, Service, Booking
@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     
     def post(self, request):
         logger.info("New registration attempt detected.")
@@ -42,6 +43,7 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     
     def post(self, request):
         logger.info("Manual login attempt.")
@@ -66,10 +68,14 @@ class LoginView(APIView):
 class ServiceListView(generics.ListCreateAPIView):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsServiceWorker] # Module 3: Only Workers can Create
+    permission_classes = [IsServiceWorkerOrReadOnly] # Module 3: Anyone can View, Only Workers can Create
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return Response({"status": "success", "data": serializer.data})
 
@@ -86,7 +92,7 @@ class ServiceListView(generics.ListCreateAPIView):
 class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsServiceProviderOrReadOnly] # Module 3: Only Owner can Edit/Delete
+    permission_classes = [IsServiceProviderOrReadOnly] # Module 3: Anyone can View, Only Owner can Edit/Delete
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -127,6 +133,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return Response({"status": "success", "data": serializer.data})
 
@@ -165,6 +175,7 @@ class ProfileView(generics.RetrieveUpdateDestroyAPIView):
 
 class GoogleSyncView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     
     def post(self, request):
         try:

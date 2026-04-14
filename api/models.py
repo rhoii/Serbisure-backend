@@ -57,3 +57,6 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking for {self.service.name} by {self.homeowner.full_name}"
+
+    def __str__(self):
+        return f"Booking for {self.service.name} by {self.homeowner.full_name}"
