@@ -176,7 +176,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
+        'anon': '10/minute',  # Lowered for demo — change back to '100/day' after recording
         'user': '1000/day'
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -215,15 +215,5 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 X_FRAME_OPTIONS = 'DENY'
 
 # --- CORS Configuration ---
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Standard Vite port
-    "http://127.0.0.1:5173",
-]
-# Support for dynamic Vercel frontend URLs if you have one
-if os.environ.get('FRONTEND_URL'):
-    CORS_ALLOWED_ORIGINS.append(os.environ.get('FRONTEND_URL'))
-
-# Optional: Allow all .vercel.app for ease of use (restrict in production if needed)
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.vercel\.app$",
-]
+# Task 2: Allow frontend applications to access API
+CORS_ALLOW_ALL_ORIGINS = True
